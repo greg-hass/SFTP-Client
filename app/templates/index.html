@@ -1926,7 +1926,7 @@
             root.innerHTML = "<div style='padding: var(--space-md); text-align: center; color: var(--text-muted);'>Loading...</div>";
             
             // Load regular bookmarks
-            let bookmarks = [];
+            bookmarks = [];
             try {
                 const response = await fetch("/api/bookmarks");
                 bookmarks = await response.json();
@@ -1960,7 +1960,7 @@
                     </div>
                 `;
                 row.querySelector(".bookmark-name").textContent = bookmark.name;
-                row.querySelector(".bookmark-meta").textContent = `${bookmark.username}@${bookmark.host}:${bookmark.port}`;
+                row.querySelector(".bookmark-meta").textContent = `${bookmark.username}@${bookmark.host}:${bookmark.port}${bookmark.has_key ? " • key" : ""}`;
                 row.addEventListener("click", (e) => {
                     if (!e.target.closest('.bookmark-actions')) {
                         connectBookmark(bookmark.id, activePane);
@@ -2056,7 +2056,35 @@
             );
             
             if (existingBookmark) {
-                return; // Already bookmarked
+                if (!connectionData.key_data || existingBookmark.has_key) {
+                    return; // Already bookmarked with required auth material
+                }
+
+                // Upgrade existing bookmark to include SSH key material
+                const updatePayload = {
+                    name: existingBookmark.name,
+                    host: existingBookmark.host,
+                    port: existingBookmark.port,
+                    username: existingBookmark.username,
+                    password: connectionData.password || "",
+                    key_data: connectionData.key_data,
+                    path: connectionData.path || existingBookmark.path || "/"
+                };
+                try {
+                    const updateResponse = await fetch(`/api/bookmarks/${existingBookmark.id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(updatePayload)
+                    });
+                    const updateResult = await updateResponse.json();
+                    if (updateResult.success) {
+                        await loadBookmarks();
+                        showToast("Updated bookmark with SSH key");
+                    }
+                } catch (err) {
+                    console.log("Bookmark key upgrade failed:", err);
+                }
+                return;
             }
             
             // Create auto-generated name
@@ -2068,6 +2096,7 @@
                 port: connectionData.port,
                 username: connectionData.username,
                 password: connectionData.password,
+                key_data: connectionData.key_data,
                 path: connectionData.path || "/"
             };
             

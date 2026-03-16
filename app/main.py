@@ -121,6 +121,14 @@ def init_db() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_bookmarks_host_user ON bookmarks(host, username)"
         )
+        columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(bookmarks)").fetchall()
+        }
+        if "key_data_encrypted" not in columns:
+            conn.execute(
+                "ALTER TABLE bookmarks ADD COLUMN key_data_encrypted TEXT DEFAULT ''"
+            )
         conn.commit()
 
 
@@ -283,6 +291,7 @@ class BookmarkRequest(BaseModel):
     port: int = Field(default=22, ge=1, le=65535)
     username: str = Field(min_length=1, max_length=120)
     password: str = ""
+    key_data: Optional[str] = None
     path: str = "/"
 
 
@@ -468,7 +477,8 @@ async def get_bookmarks():
     with get_db() as conn:
         rows = conn.execute(
             """
-            SELECT id, name, host, port, username, path, created_at, updated_at
+            SELECT id, name, host, port, username, path, created_at, updated_at,
+                   CASE WHEN key_data_encrypted IS NOT NULL AND key_data_encrypted != '' THEN 1 ELSE 0 END AS has_key
             FROM bookmarks
             ORDER BY name COLLATE NOCASE
             """
@@ -481,8 +491,8 @@ async def create_bookmark(request: BookmarkRequest):
     with get_db() as conn:
         cursor = conn.execute(
             """
-            INSERT INTO bookmarks (name, host, port, username, password_encrypted, path)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO bookmarks (name, host, port, username, password_encrypted, key_data_encrypted, path)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 request.name.strip(),
@@ -490,6 +500,7 @@ async def create_bookmark(request: BookmarkRequest):
                 request.port,
                 request.username.strip(),
                 encrypt_password(request.password),
+                encrypt_password(request.key_data or ""),
                 normalize_path(request.path),
             ),
         )
@@ -501,7 +512,8 @@ async def create_bookmark(request: BookmarkRequest):
 async def update_bookmark(bookmark_id: str, request: BookmarkRequest):
     with get_db() as conn:
         row = conn.execute(
-            "SELECT password_encrypted FROM bookmarks WHERE id = ?", (bookmark_id,)
+            "SELECT password_encrypted, key_data_encrypted FROM bookmarks WHERE id = ?",
+            (bookmark_id,),
         ).fetchone()
         if not row:
             return error_response("Bookmark not found", 404)
@@ -511,10 +523,15 @@ async def update_bookmark(bookmark_id: str, request: BookmarkRequest):
             if request.password
             else row["password_encrypted"]
         )
+        key_data_encrypted = (
+            encrypt_password(request.key_data)
+            if request.key_data is not None and request.key_data != ""
+            else row["key_data_encrypted"]
+        )
         conn.execute(
             """
             UPDATE bookmarks
-            SET name = ?, host = ?, port = ?, username = ?, password_encrypted = ?, path = ?,
+            SET name = ?, host = ?, port = ?, username = ?, password_encrypted = ?, key_data_encrypted = ?, path = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -524,6 +541,7 @@ async def update_bookmark(bookmark_id: str, request: BookmarkRequest):
                 request.port,
                 request.username.strip(),
                 password_encrypted,
+                key_data_encrypted,
                 normalize_path(request.path),
                 bookmark_id,
             ),
@@ -546,12 +564,19 @@ def connect_with_saved_bookmark(
     bookmark_row: sqlite3.Row, key_data: Optional[str] = None
 ) -> dict:
     password = decrypt_password(bookmark_row["password_encrypted"])
+    stored_key_data = decrypt_password(bookmark_row["key_data_encrypted"] or "")
+    effective_key_data = key_data or stored_key_data
+    if bookmark_row["password_encrypted"] and not password and not effective_key_data:
+        raise ValueError(
+            "Saved credentials could not be decrypted. Set a stable SFTP_ENCRYPTION_KEY and re-save the bookmark."
+        )
+
     session = sessions.create(
         host=bookmark_row["host"],
         port=int(bookmark_row["port"]),
         username=bookmark_row["username"],
         password=password,
-        key_data=key_data,
+        key_data=effective_key_data,
         default_path=bookmark_row["path"],
     )
     return {
