@@ -1,0 +1,2845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#09111f">
+    <title>SFTP Client</title>
+    <style>
+        /* === Modern File Manager Design System === */
+        /* Dark neutral palette, clean layout, professional styling */
+        
+        :root {
+            /* Colors: Dark Neutral (VS Code inspired) */
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --bg-hover: #30363d;
+            --bg-active: rgba(31, 111, 235, 0.15);
+            --bg-selected: rgba(31, 111, 235, 0.20);
+            
+            /* Borders */
+            --border-primary: #30363d;
+            --border-secondary: #21262d;
+            --border-accent: rgba(88, 166, 255, 0.40);
+            
+            /* Text */
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --text-disabled: #484f58;
+            
+            /* Accents: Professional blue */
+            --accent-primary: #58a6ff;
+            --accent-hover: #79c0ff;
+            --accent-dim: #1f6feb;
+            --accent-bg: rgba(56, 139, 253, 0.20);
+            
+            /* Semantic */
+            --success: #3fb950;
+            --warning: #d29922;
+            --error: #f85149;
+            --info: #58a6ff;
+            
+            /* File type colors */
+            --folder-color: #79c0ff;
+            --file-color: #8b949e;
+            --image-color: #a371f7;
+            --code-color: #7ee787;
+            
+            /* Spacing: Medium density */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 12px;
+            --space-lg: 16px;
+            --space-xl: 24px;
+            --space-2xl: 32px;
+            
+            /* Typography */
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            --font-mono: 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace;
+            
+            --text-xs: 11px;
+            --text-sm: 12px;
+            --text-base: 13px;
+            --text-lg: 14px;
+            --text-xl: 16px;
+            
+            --font-normal: 400;
+            --font-medium: 500;
+            --font-semibold: 600;
+            
+            /* Effects: Subtle depth */
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+            
+            /* Radii: Clean, modern */
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+            --radius-xl: 12px;
+            
+            /* Layout */
+            --sidebar-width: 260px;
+            --header-height: 52px;
+            --row-height: 40px;
+        }
+
+        /* === Base Reset === */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        html, body {
+            height: 100%;
+            font-family: var(--font-sans);
+            font-size: var(--text-base);
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            line-height: 1.5;
+            overflow: hidden;
+        }
+
+        /* === Layout Grid === */
+        .app {
+            display: grid;
+            grid-template-columns: var(--sidebar-width) 1fr;
+            grid-template-rows: var(--header-height) 1fr;
+            grid-template-areas:
+                "sidebar header"
+                "sidebar main";
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* === Sidebar === */
+        .sidebar {
+            grid-area: sidebar;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-primary);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: var(--space-md) var(--space-lg);
+            border-bottom: 1px solid var(--border-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-sm);
+        }
+
+        .sidebar-title {
+            font-size: var(--text-xs);
+            font-weight: var(--font-semibold);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .sidebar-actions {
+            display: flex;
+            gap: var(--space-xs);
+        }
+
+        /* Bookmark list - compact */
+        .bookmarks-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-xs);
+        }
+
+        .bookmark-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .bookmark-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .bookmark-item.active {
+            background: var(--bg-selected);
+        }
+
+        .bookmark-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+            font-size: var(--text-xs);
+            font-weight: var(--font-semibold);
+        }
+
+        .bookmark-icon.host-generic {
+            background: rgba(88, 166, 255, 0.15);
+            color: var(--accent-primary);
+        }
+
+        .bookmark-icon.host-ubuntu,
+        .bookmark-icon.host-linux {
+            background: rgba(211, 159, 62, 0.15);
+            color: var(--warning);
+        }
+
+        .bookmark-icon.host-pi {
+            background: rgba(63, 185, 80, 0.15);
+            color: var(--success);
+        }
+
+        .bookmark-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .bookmark-name {
+            font-size: var(--text-sm);
+            font-weight: var(--font-medium);
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .bookmark-meta {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+        }
+
+        .bookmark-actions {
+            display: flex;
+            gap: var(--space-xs);
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+
+        .bookmark-item:hover .bookmark-actions {
+            opacity: 1;
+        }
+
+        .bookmark-btn {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: var(--text-sm);
+        }
+
+        .bookmark-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .sidebar-footer {
+            padding: var(--space-md) var(--space-lg);
+            border-top: 1px solid var(--border-secondary);
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+        }
+
+        /* === Header === */
+        .header {
+            grid-area: header;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            padding: 0 var(--space-lg);
+            gap: var(--space-md);
+        }
+
+        .header-section {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        /* Connection status */
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            padding: var(--space-xs) var(--space-sm);
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.connected {
+            background: var(--success);
+        }
+
+        .status-dot.connecting {
+            background: var(--warning);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Path Bar with Breadcrumbs */
+        .path-bar {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--radius-md);
+            padding: var(--space-xs) var(--space-sm);
+            min-width: 0;
+            max-width: 600px;
+        }
+
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .breadcrumb-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: var(--space-xs) var(--space-sm);
+            border-radius: var(--radius-sm);
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .breadcrumb-item:hover {
+            color: var(--text-primary);
+            background: var(--bg-hover);
+        }
+
+        .breadcrumb-item.root {
+            color: var(--accent-primary);
+        }
+
+        .breadcrumb-separator {
+            color: var(--text-muted);
+            font-size: var(--text-xs);
+            margin: 0 -4px;
+        }
+
+        .path-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+            outline: none;
+            padding: 0 var(--space-xs);
+            min-width: 100px;
+        }
+
+        .path-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Toolbar actions */
+        .toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+        }
+
+        /* Search box */
+        .search-box {
+            position: relative;
+            width: 220px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: var(--space-xs) var(--space-sm) var(--space-xs) 32px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: var(--text-sm);
+            transition: all 0.15s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            background: var(--bg-primary);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+            width: 14px;
+            height: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* View toggle */
+        .view-toggle {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--radius-md);
+            padding: var(--space-xs);
+        }
+
+        /* === Main Content === */
+        .main {
+            grid-area: main;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-primary);
+        }
+
+        /* === Buttons === */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-xs);
+            padding: var(--space-xs) var(--space-sm);
+            font-size: var(--text-sm);
+            font-weight: var(--font-medium);
+            border: 1px solid transparent;
+            border-radius: var(--radius-md);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            border-color: var(--border-primary);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-hover);
+        }
+
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+        }
+
+        .btn-icon svg,
+        .search-icon svg,
+        .bookmark-btn svg,
+        .file-action-btn svg,
+        .transfer-btn svg,
+        .empty-state-icon svg,
+        .breadcrumb-item svg,
+        .bookmark-icon svg,
+        .file-icon svg {
+            width: 14px;
+            height: 14px;
+            display: block;
+        }
+
+        .transfer-btn svg,
+        .bookmark-icon svg,
+        .file-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* === File Table === */
+        .file-table {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .table-header {
+            display: grid;
+            grid-template-columns: 44px minmax(200px, 3fr) 100px 140px 100px 100px 44px;
+            gap: var(--space-md);
+            align-items: center;
+            padding: var(--space-sm) var(--space-lg);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            font-size: var(--text-xs);
+            font-weight: var(--font-semibold);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            user-select: none;
+        }
+
+        .table-header-cell {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            cursor: pointer;
+            transition: color 0.15s ease;
+        }
+
+        .table-header-cell:hover {
+            color: var(--text-primary);
+        }
+
+        .table-header-cell.sortable::after {
+            content: '▼';
+            font-size: 8px;
+            opacity: 0.5;
+        }
+
+        .table-body {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .file-row {
+            display: grid;
+            grid-template-columns: 44px minmax(200px, 3fr) 100px 140px 100px 100px 44px;
+            gap: var(--space-md);
+            align-items: center;
+            padding: 0 var(--space-lg);
+            height: var(--row-height);
+            border-bottom: 1px solid var(--border-secondary);
+            cursor: pointer;
+            transition: background 0.1s ease;
+            user-select: none;
+        }
+
+        .file-row:hover {
+            background: var(--bg-hover);
+        }
+
+        .file-row.selected {
+            background: var(--bg-selected);
+        }
+
+        .file-row.selected:hover {
+            background: var(--bg-active);
+        }
+
+        .file-row:focus {
+            outline: none;
+            background: var(--bg-active);
+        }
+
+        .file-row.drag-over {
+            background: var(--accent-bg);
+            border: 2px dashed var(--accent-primary);
+        }
+
+        /* Row cells */
+        .file-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            color: var(--file-color);
+        }
+
+        .file-icon.folder {
+            color: var(--folder-color);
+        }
+
+        .file-icon.image {
+            color: var(--image-color);
+        }
+
+        .file-icon.code {
+            color: var(--code-color);
+        }
+
+        .file-name {
+            font-size: var(--text-sm);
+            font-weight: var(--font-medium);
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-name-folder {
+            color: var(--text-primary);
+        }
+
+        .file-cell {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-cell-muted {
+            color: var(--text-muted);
+        }
+
+        .file-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: var(--space-xs);
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+
+        .file-row:hover .file-actions {
+            opacity: 1;
+        }
+
+        .file-action-btn {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+
+        .file-action-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .file-action-btn.danger:hover {
+            color: var(--error);
+        }
+
+        /* === Empty State === */
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-lg);
+            color: var(--text-muted);
+            text-align: center;
+            padding: var(--space-2xl);
+        }
+
+        .empty-state-icon {
+            width: 48px;
+            height: 48px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-disabled);
+        }
+
+        .empty-state-title {
+            font-size: var(--text-lg);
+            font-weight: var(--font-semibold);
+            color: var(--text-secondary);
+        }
+
+        .empty-state-text {
+            font-size: var(--text-sm);
+            max-width: 320px;
+            line-height: 1.6;
+        }
+
+        /* === Status Bar === */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-xs) var(--space-lg);
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-primary);
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+        }
+
+        .status-bar-left,
+        .status-bar-right {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+        }
+
+        /* === Modals === */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 520px;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-lg);
+            border-bottom: 1px solid var(--border-secondary);
+        }
+
+        .modal-title {
+            font-size: var(--text-lg);
+            font-weight: var(--font-semibold);
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: var(--space-lg);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--space-sm);
+            padding: var(--space-md) var(--space-lg);
+            border-top: 1px solid var(--border-secondary);
+            background: var(--bg-tertiary);
+        }
+
+        /* === Form Elements === */
+        .input {
+            width: 100%;
+            padding: var(--space-sm) var(--space-md);
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: var(--text-sm);
+            transition: all 0.15s ease;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-bg);
+        }
+
+        .input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-group {
+            margin-bottom: var(--space-md);
+        }
+
+        .form-label {
+            display: block;
+            font-size: var(--text-xs);
+            font-weight: var(--font-semibold);
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            margin-bottom: var(--space-xs);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-md);
+        }
+
+        .form-grid .full {
+            grid-column: 1 / -1;
+        }
+
+        /* === Toast Notifications === */
+        .toast-container {
+            position: fixed;
+            bottom: var(--space-lg);
+            right: var(--space-lg);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            z-index: 300;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-sm) var(--space-md);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-left: 3px solid var(--accent-primary);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            font-size: var(--text-sm);
+            color: var(--text-primary);
+            animation: slideIn 0.2s ease;
+            min-width: 280px;
+        }
+
+        .toast.success {
+            border-left-color: var(--success);
+        }
+
+        .toast.error {
+            border-left-color: var(--error);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* === Preview Modal === */
+        .preview-content {
+            min-height: 300px;
+            max-height: 60vh;
+            overflow: auto;
+            padding: var(--space-md);
+            background: var(--bg-primary);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--radius-md);
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+            white-space: pre-wrap;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* === Dual Pane Mode === */
+        .dual-pane-container {
+            display: grid;
+            grid-template-columns: 1fr 44px 1fr;
+            gap: var(--space-md);
+            height: 100%;
+            padding: var(--space-md);
+        }
+
+        .pane {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        .pane.active {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 1px var(--accent-primary);
+        }
+
+        .pane-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-sm) var(--space-md);
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .pane-title {
+            font-size: var(--text-sm);
+            font-weight: var(--font-semibold);
+            color: var(--text-primary);
+        }
+
+        .pane-path-bar {
+            padding: var(--space-xs) var(--space-md);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-secondary);
+            font-size: var(--text-xs);
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pane-files {
+            flex: 1;
+            overflow: auto;
+        }
+
+        .transfer-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-sm);
+        }
+
+        .transfer-btn {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: var(--text-lg);
+            transition: all 0.15s ease;
+        }
+
+        .transfer-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .transfer-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* === Context Menu === */
+        .context-menu {
+            position: fixed;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            padding: var(--space-xs);
+            min-width: 180px;
+            z-index: 200;
+        }
+
+        .context-menu-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-sm);
+            font-size: var(--text-sm);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: background 0.1s ease;
+        }
+
+        .context-menu-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .context-menu-item.danger {
+            color: var(--error);
+        }
+
+        .context-menu-separator {
+            height: 1px;
+            background: var(--border-secondary);
+            margin: var(--space-xs) 0;
+        }
+
+        /* === Scrollbar Styling === */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-primary);
+            border-radius: 5px;
+            border: 2px solid var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        ::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+
+        /* === Selection === */
+        ::selection {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+        }
+
+        /* === Focus States === */
+        :focus-visible {
+            outline: 2px solid var(--accent-primary);
+            outline-offset: 2px;
+        }
+
+        button:focus-visible,
+        .btn:focus-visible {
+            outline-offset: 2px;
+        }
+
+        /* === Responsive === */
+        @media (max-width: 1200px) {
+            .app {
+                grid-template-columns: 220px 1fr;
+            }
+            
+            .table-header,
+            .file-row {
+                grid-template-columns: 40px minmax(150px, 2fr) 80px 120px 80px 80px 40px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .app {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+                grid-template-areas:
+                    "header"
+                    "main";
+            }
+            
+            .sidebar {
+                display: none;
+            }
+            
+            .table-header,
+            .file-row {
+                grid-template-columns: 40px minmax(100px, 2fr) auto 40px;
+            }
+            
+            .file-cell.hide-mobile {
+                display: none;
+            }
+
+            .search-box {
+                width: 160px;
+            }
+        }
+
+        /* === Utility Classes === */
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .gap-sm { gap: var(--space-sm); }
+        .gap-md { gap: var(--space-md); }
+        .text-muted { color: var(--text-muted); }
+        .text-secondary { color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">SFTP Client</div>
+                <div class="sidebar-actions">
+                    <button class="btn btn-icon" onclick="openConnectModal(activePane)" title="Connect">+</button>
+                </div>
+            </div>
+
+            <div class="bookmarks-list" id="bookmarks">
+                <!-- Hardcoded Local bookmark -->
+                <div class="bookmark-item" onclick="openLocalBrowser()" style="background: rgba(88, 166, 255, 0.1); border-left: 3px solid var(--accent-primary); margin-bottom: var(--space-xs); cursor: pointer;">
+                    <div class="bookmark-icon" style="background: rgba(88, 166, 255, 0.2); color: var(--accent-primary); font-size: 16px;">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 19h6M7 19h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    </div>
+                    <div class="bookmark-info">
+                        <div class="bookmark-name" style="color: var(--accent-primary); font-weight: var(--font-semibold);">Local Files</div>
+                        <div class="bookmark-meta">Your computer</div>
+                    </div>
+                </div>
+                <div style="height: 1px; background: var(--border-primary); margin: var(--space-sm) 0;"></div>
+                <div style="font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; padding: var(--space-sm) var(--space-md);">Remote Servers</div>
+                <div id="remoteBookmarks">
+                    <div style="padding:var(--space-lg); text-align:center; color:var(--text-muted); font-size:var(--text-sm);">Loading...</div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <span id="serverStatus">Checking...</span>
+            </div>
+        </aside>
+
+        <!-- Header -->
+        <header class="header">
+            <div class="header-section">
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="connectionText">Offline</span>
+                </div>
+            </div>
+
+            <div class="path-bar">
+                <div class="breadcrumbs" id="breadcrumbs">
+                    <!-- Breadcrumbs rendered here -->
+                </div>
+                <input type="text" class="path-input" id="pathInput" placeholder="Enter path..." onkeydown="handlePathInput(event)">
+            </div>
+
+            <div class="header-section">
+                <div class="search-box">
+                    <span class="search-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.8"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+                    <input type="search" class="search-input" id="searchInput" placeholder="Filter files..." oninput="renderWorkspace()">
+                </div>
+
+                <div class="toolbar-actions">
+                    <button class="btn btn-icon" onclick="goUpActive()" title="Go up"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V5M12 5l-5 5M12 5l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                    <button class="btn btn-icon" onclick="refreshAll()" title="Refresh"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                    <button class="btn btn-icon" onclick="toggleLocalBrowser()" title="Local files" id="localBrowserBtn" style="font-weight: bold;"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 19h6M7 19h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+                    <button class="btn btn-icon" onclick="toggleDualPane()" title="Dual pane" id="dualPaneBtn"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.6"/></svg></button>
+                    <button class="btn btn-primary" onclick="triggerUpload()">Upload</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Single Pane View -->
+            <div id="singleView" class="file-table">
+                <div class="table-header">
+                    <div class="table-header-cell"></div>
+                    <div class="table-header-cell sortable" onclick="sortBy('name')">Name</div>
+                    <div class="table-header-cell sortable" onclick="sortBy('size')">Size</div>
+                    <div class="table-header-cell sortable hide-mobile" onclick="sortBy('modified')">Modified</div>
+                    <div class="table-header-cell sortable hide-mobile" onclick="sortBy('type')">Type</div>
+                    <div class="table-header-cell hide-mobile" onclick="sortBy('permissions')">Permissions</div>
+                    <div class="table-header-cell"></div>
+                </div>
+                <!-- Toolbar -->
+                <div style="display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) var(--space-lg); background: var(--bg-tertiary); border-bottom: 1px solid var(--border-secondary);">
+                    <button class="btn btn-icon" onclick="goUpActive()" title="Go up"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V5M12 5l-5 5M12 5l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                    <button class="btn btn-icon" onclick="goHome()" title="Home"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 11.5l8-6 8 6V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1v-7.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+                    <button class="btn btn-icon" onclick="refreshAll()" title="Refresh"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                    <div style="width: 1px; height: 20px; background: var(--border-secondary); margin: 0 var(--space-xs);"></div>
+                    <button class="btn btn-icon" onclick="openFolderModal()" title="New folder"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 8.5a2 2 0 0 1 2-2H9l1.4 1.6c.3.3.7.5 1.1.5H18a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2v-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 11v5M9.5 13.5h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+                    <button class="btn btn-icon" onclick="openFileModal()" title="New file"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 4h6l4 4v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 4v4h4M12 11v5M9.5 13.5h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+                    <button class="btn btn-icon" onclick="triggerUpload()" title="Upload"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4v10M12 4l-4 4M12 4l4 4M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                    <div style="flex: 1;"></div>
+                    <button class="btn btn-icon danger" id="deleteBtn" onclick="deleteSelected()" title="Delete selected" disabled><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7h14M10 11v6M14 11v6M9 7l1-2h4l1 2M7 7l1 12h8l1-12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                </div>
+
+                <div class="table-body" id="fileTableBody" style="position: relative;">
+                    <!-- File rows rendered here -->
+                    <div id="dropOverlay" class="drop-overlay" style="display: none; position: absolute; inset: 0; background: var(--accent-bg); border: 3px dashed var(--accent-primary); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10;">
+                        <div style="font-size: 48px; margin-bottom: var(--space-md);">
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:48px;height:48px;"><path d="M12 3v11M12 3l-4 4M12 3l4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </div>
+                        <div style="font-size: var(--text-lg); font-weight: var(--font-semibold); color: var(--text-primary);">Drop files here to upload</div>
+                        <div style="font-size: var(--text-sm); color: var(--text-muted); margin-top: var(--space-xs);">Or click the Upload button above</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Local Browser View -->
+            <div id="localBrowserView" class="dual-pane-container hidden">
+                <!-- Local Pane -->
+                <section id="localPane" class="pane active" style="border-right: 2px solid var(--border-primary);">
+                    <div class="pane-header">
+                        <div style="display: flex; align-items: center; gap: var(--space-sm);">
+                            <span style="font-size: 18px;"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;"><rect x="4" y="5" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 19h6M7 19h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+                            <div>
+                                <div style="font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Local</div>
+                                <div class="pane-title" style="margin-top: 2px;">My Computer</div>
+                            </div>
+                        </div>
+                        <div class="toolbar-actions">
+                            <button class="btn btn-icon" onclick="goUpLocal()" title="Go up"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V5M12 5l-5 5M12 5l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                            <button class="btn btn-icon" onclick="goHomeLocal()" title="Home"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 11.5l8-6 8 6V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1v-7.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+                            <button class="btn btn-icon" onclick="refreshLocal()" title="Refresh"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                        </div>
+                    </div>
+                    <div class="pane-path-bar" id="localPanePath">~</div>
+                    <div class="pane-files" id="localPaneFiles" style="overflow-y: auto;"></div>
+                </section>
+
+                <!-- Transfer Column -->
+                <div class="transfer-column">
+                    <button class="transfer-btn" onclick="uploadLocalToRemote()" title="Upload to remote"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                    <div style="font-size: var(--text-xs); color: var(--text-muted); writing-mode: vertical-rl; text-orientation: mixed; padding: var(--space-sm) 0;">TRANSFER</div>
+                </div>
+
+                <!-- Remote Pane -->
+                <section id="remotePane" class="pane">
+                    <div class="pane-header">
+                        <div style="display: flex; align-items: center; gap: var(--space-sm);">
+                            <span style="font-size: 18px;"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.6"/><path d="M4 12h16M12 4c2.2 2.2 2.2 13.8 0 16M12 4c-2.2 2.2-2.2 13.8 0 16" stroke="currentColor" stroke-width="1.6"/></svg></span>
+                            <div>
+                                <div style="font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Remote</div>
+                                <div class="pane-title" id="localBrowserRemoteTitle" style="margin-top: 2px;">Not connected</div>
+                            </div>
+                        </div>
+                        <div class="toolbar-actions">
+                            <button class="btn" onclick="openConnectModal('left')">Connect</button>
+                        </div>
+                    </div>
+                    <div class="pane-path-bar" id="localBrowserRemotePath">/</div>
+                    <div class="pane-files" id="localBrowserRemoteFiles" style="overflow-y: auto;"></div>
+                </section>
+            </div>
+
+            <!-- Dual Pane View -->
+            <div id="dualView" class="dual-pane-container hidden">
+                <section id="leftPane" class="pane active">
+                    <div class="pane-header">
+                        <div class="pane-title" id="leftPaneTitle">No connection</div>
+                        <div class="toolbar-actions">
+                            <button class="btn btn-icon" onclick="setActivePane('left')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="4"/></svg></button>
+                            <button class="btn" onclick="openConnectModal('left')">Connect</button>
+                        </div>
+                    </div>
+                    <div class="pane-path-bar" id="leftPanePathBar">/</div>
+                    <div class="pane-files" id="leftPaneFiles"></div>
+                </section>
+
+                <div class="transfer-column">
+                    <select id="transferConflictMode" class="input" title="Conflict behavior" style="max-width: 120px; font-size: var(--text-xs); padding: 8px 10px;">
+                        <option value="overwrite" selected>Overwrite</option>
+                        <option value="skip">Skip existing</option>
+                    </select>
+                    <button class="transfer-btn" onclick="transferSelected('left-to-right')" title="Transfer to right"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                    <button class="transfer-btn" onclick="transferSelected('right-to-left')" title="Transfer to left"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                </div>
+
+                <section id="rightPane" class="pane">
+                    <div class="pane-header">
+                        <div class="pane-title" id="rightPaneTitle">No connection</div>
+                        <div class="toolbar-actions">
+                            <button class="btn btn-icon" onclick="setActivePane('right')"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/></svg></button>
+                            <button class="btn" onclick="openConnectModal('right')">Connect</button>
+                        </div>
+                    </div>
+                    <div class="pane-path-bar" id="rightPanePathBar">/</div>
+                    <div class="pane-files" id="rightPaneFiles"></div>
+                </section>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <div class="status-bar-left">
+                    <span id="statusItems">0 items</span>
+                    <span id="statusSelected"></span>
+                </div>
+                <div class="status-bar-right">
+                    <span id="statusMode">Single pane</span>
+                    <span id="statusVersion"></span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <input id="uploadInput" type="file" multiple hidden>
+
+    <!-- Connect Modal -->
+    <div id="connectModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Connect to Server</div>
+                <button class="btn btn-icon" onclick="closeModal('connectModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="submitConnect(event)">
+                    <input type="hidden" id="connectTargetPane" value="left">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="host">Host</label>
+                            <input class="input" id="host" placeholder="example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="port">Port</label>
+                            <input class="input" id="port" type="number" value="22" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="username">Username</label>
+                            <input class="input" id="username" placeholder="root" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="password">Password</label>
+                            <input class="input" id="password" type="password" placeholder="Optional if using key">
+                        </div>
+                        <div class="form-group full">
+                            <label class="form-label" for="path">Initial path</label>
+                            <input class="input" id="path" value="/">
+                        </div>
+                        <div class="form-group full">
+                            <label class="form-label" for="privateKey">Private key (optional)</label>
+                            <input class="input" id="privateKey" type="file">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" type="button" onclick="closeModal('connectModal')">Cancel</button>
+                        <button class="btn btn-primary" type="submit">Connect</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bookmark Modal -->
+    <div id="bookmarkModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="bookmarkModalTitle">Save Bookmark</div>
+                <button class="btn btn-icon" onclick="closeModal('bookmarkModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="submitBookmark(event)">
+                    <input type="hidden" id="bookmarkId">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="bookmarkName">Name</label>
+                            <input class="input" id="bookmarkName" placeholder="My Server" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="bookmarkHost">Host</label>
+                            <input class="input" id="bookmarkHost" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="bookmarkPort">Port</label>
+                            <input class="input" id="bookmarkPort" type="number" value="22" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="bookmarkUsername">Username</label>
+                            <input class="input" id="bookmarkUsername" required>
+                        </div>
+                        <div class="form-group full">
+                            <label class="form-label" for="bookmarkPassword">Password</label>
+                            <input class="input" id="bookmarkPassword" type="password" placeholder="Leave blank to keep existing">
+                        </div>
+                        <div class="form-group full">
+                            <label class="form-label" for="bookmarkPath">Initial path</label>
+                            <input class="input" id="bookmarkPath" value="/">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" type="button" onclick="closeModal('bookmarkModal')">Cancel</button>
+                        <button class="btn btn-primary" type="submit">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Folder Modal -->
+    <div id="folderModal" class="modal-overlay">
+        <div class="modal" style="max-width:420px;">
+            <div class="modal-header">
+                <div class="modal-title">Create Folder</div>
+                <button class="btn btn-icon" onclick="closeModal('folderModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="submitNewFolder(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="folderName">Folder name</label>
+                        <input class="input" id="folderName" placeholder="New folder" required>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" type="button" onclick="closeModal('folderModal')">Cancel</button>
+                        <button class="btn btn-primary" type="submit">Create</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Modal -->
+    <div id="fileModal" class="modal-overlay">
+        <div class="modal" style="max-width:520px;">
+            <div class="modal-header">
+                <div class="modal-title">Create File</div>
+                <button class="btn btn-icon" onclick="closeModal('fileModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="submitNewFile(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="fileName">File name</label>
+                        <input class="input" id="fileName" placeholder="New file.txt" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="fileContent">Content (optional)</label>
+                        <textarea class="input" id="fileContent" rows="6" placeholder="Enter file content..." style="font-family: var(--font-mono); resize: vertical;"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" type="button" onclick="closeModal('fileModal')">Cancel</button>
+                        <button class="btn btn-primary" type="submit">Create</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="previewModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="previewTitle">Preview</div>
+                <button class="btn btn-icon" onclick="closeModal('previewModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="previewBody" class="preview-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script>
+        let dualPaneMode = false;
+        let activePane = "left";
+        let bookmarks = [];
+        const textExtensions = new Set(["txt", "md", "log", "json", "yaml", "yml", "ini", "conf", "cfg", "py", "js", "ts", "html", "css", "sh", "env", "xml"]);
+        const panes = {
+            left: { sessionId: "", host: "", path: "/", entries: [], filtered: [], selected: "" },
+            right: { sessionId: "", host: "", path: "/", entries: [], filtered: [], selected: "" }
+        };
+        let currentSortField = "name";
+        let currentSortDirection = "asc";
+        const icons = {
+            folder: `
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M3.75 7.5a2.25 2.25 0 0 1 2.25-2.25h3.2c.5 0 .97.21 1.3.58l1.15 1.29c.33.37.8.58 1.3.58H18a2.25 2.25 0 0 1 2.25 2.25v6.75A2.25 2.25 0 0 1 18 18.75H6A2.25 2.25 0 0 1 3.75 16.5V7.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                </svg>
+            `,
+            file: `
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M8.25 3.75h5.7c.4 0 .78.16 1.06.44l3.3 3.3c.28.28.44.66.44 1.06v9.2a2 2 0 0 1-2 2h-8.5a2 2 0 0 1-2-2v-12a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                    <path d="M13.5 3.75V8.25H18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            `,
+            server: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5" width="16" height="6" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="4" y="13" width="16" height="6" rx="1.5" stroke="currentColor" stroke-width="1.6"/><circle cx="8" cy="8" r="1" fill="currentColor"/><circle cx="8" cy="16" r="1" fill="currentColor"/></svg>`,
+            edit: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m12 6 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+            trash: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7h14M10 11v6M14 11v6M9 7l1-2h4l1 2M7 7l1 12h8l1-12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+            eye: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.6"/></svg>`,
+            download: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4v10M12 14l-4-4M12 14l4-4M5 18v1a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+            home: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 11.5l8-6 8 6V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1v-7.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`,
+            statusOnline: `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="4"/></svg>`,
+            statusOffline: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/></svg>`
+        };
+
+        function icon(name) {
+            return icons[name] || "";
+        }
+
+        // Local browser state
+        let localBrowserMode = false;
+        let localState = {
+            path: "~",
+            entries: [],
+            selected: ""
+        };
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            console.log("SFTP Client initializing...");
+            
+            try {
+                bindUpload();
+                bindDropzone();
+                
+                // Load bookmarks first (includes Local Files)
+                try {
+                    await loadBookmarks();
+                } catch (e) {
+                    console.error("Failed to load bookmarks:", e);
+                }
+                
+                // Load other data
+                try {
+                    await loadStatus();
+                } catch (e) {
+                    console.error("Failed to load status:", e);
+                }
+                
+                renderWorkspace();
+                console.log("SFTP Client ready!");
+            } catch (err) {
+                console.error("Fatal error during initialization:", err);
+            }
+        });
+
+        function getPane(name = activePane) {
+            return panes[name];
+        }
+
+        function showToast(message, isError = false) {
+            const container = document.getElementById("toastContainer");
+            const toast = document.createElement("div");
+            toast.className = `toast ${isError ? 'error' : 'success'}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.2s ease reverse';
+                setTimeout(() => toast.remove(), 200);
+            }, 3000);
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.add("open");
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove("open");
+        }
+
+        function openConnectModal(targetPane = "left") {
+            document.getElementById("connectTargetPane").value = targetPane;
+            openModal("connectModal");
+        }
+
+        function openBookmarkModal(bookmark = null) {
+            const active = getPane();
+            document.getElementById("bookmarkModalTitle").textContent = bookmark ? "Edit bookmark" : "Save bookmark";
+            document.getElementById("bookmarkId").value = bookmark?.id || "";
+            document.getElementById("bookmarkName").value = bookmark?.name || (active.host ? `${document.getElementById("username").value || "user"}@${active.host}` : "");
+            document.getElementById("bookmarkHost").value = bookmark?.host || document.getElementById("host").value || active.host;
+            document.getElementById("bookmarkPort").value = bookmark?.port || document.getElementById("port").value || 22;
+            document.getElementById("bookmarkUsername").value = bookmark?.username || document.getElementById("username").value || "";
+            document.getElementById("bookmarkPassword").value = "";
+            document.getElementById("bookmarkPath").value = bookmark?.path || active.path || "/";
+            openModal("bookmarkModal");
+        }
+
+        function openFolderModal() {
+            const pane = getPane();
+            if (!pane.sessionId) {
+                showToast("Connect the active pane first", true);
+                return;
+            }
+            document.getElementById("folderName").value = "";
+            openModal("folderModal");
+        }
+
+        function openFileModal() {
+            const pane = getPane();
+            if (!pane.sessionId) {
+                showToast("Connect the active pane first", true);
+                return;
+            }
+            document.getElementById("fileName").value = "";
+            document.getElementById("fileContent").value = "";
+            openModal("fileModal");
+        }
+
+        function goHome() {
+            const pane = getPane();
+            if (!pane.sessionId) {
+                showToast("Connect first", true);
+                return;
+            }
+            pane.path = "/";
+            pane.selected = "";
+            refreshPane(activePane);
+        }
+
+        function deleteSelected() {
+            const pane = getPane();
+            if (!pane.sessionId || !pane.selected) {
+                showToast("Select a file to delete", true);
+                return;
+            }
+            deleteEntry(activePane, pane.selected);
+        }
+
+        async function submitNewFile(event) {
+            event.preventDefault();
+            const pane = getPane();
+            const fileName = document.getElementById("fileName").value.trim();
+            const content = document.getElementById("fileContent").value;
+            
+            if (!fileName) return;
+            
+            const response = await fetch("/api/create-file", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    session_id: pane.sessionId,
+                    remote_path: joinPath(pane.path, fileName),
+                    content: content
+                })
+            });
+            
+            const result = await response.json();
+            if (!result.success) {
+                showToast(result.error || "Create file failed", true);
+                return;
+            }
+            closeModal("fileModal");
+            showToast("File created");
+            await refreshPane(activePane);
+        }
+
+        function setActivePane(name) {
+            activePane = name;
+            document.getElementById("leftPane").classList.toggle("active", name === "left");
+            document.getElementById("rightPane").classList.toggle("active", name === "right");
+            renderWorkspace();
+        }
+
+        function toggleDualPane() {
+            dualPaneMode = !dualPaneMode;
+            const btn = document.getElementById("dualPaneBtn");
+            btn.innerHTML = dualPaneMode
+                ? `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="1.6"/></svg>`
+                : `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.6"/></svg>`;
+            btn.title = dualPaneMode ? "Single pane" : "Dual pane";
+            document.getElementById("singleView").classList.toggle("hidden", dualPaneMode);
+            document.getElementById("dualView").classList.toggle("hidden", !dualPaneMode);
+            if (dualPaneMode && !panes.right.sessionId) {
+                showToast("Connect a target server in the right pane when ready");
+            }
+            updateStatusBar();
+            renderWorkspace();
+        }
+
+        // Local Browser Functions
+        function openLocalBrowser() {
+            if (!localBrowserMode) {
+                toggleLocalBrowser();
+            } else {
+                // Already open, just refresh
+                loadLocalFiles();
+                renderLocalBrowserRemotePane();
+            }
+        }
+
+        function toggleLocalBrowser() {
+            localBrowserMode = !localBrowserMode;
+            const btn = document.getElementById("localBrowserBtn");
+            if (btn) {
+                btn.style.background = localBrowserMode ? "var(--bg-hover)" : "";
+                btn.style.color = localBrowserMode ? "var(--accent-primary)" : "";
+            }
+
+            // Hide other views
+            document.getElementById("singleView").classList.toggle("hidden", localBrowserMode);
+            document.getElementById("dualView").classList.add("hidden");
+
+            // Show/hide local browser
+            document.getElementById("localBrowserView").classList.toggle("hidden", !localBrowserMode);
+
+            if (localBrowserMode) {
+                loadLocalFiles();
+                renderLocalBrowserRemotePane();
+            }
+        }
+
+        function normalizeLocalPath(path, forApi = false) {
+            let normalized = (path || "~").trim();
+            if (!normalized) {
+                normalized = "~";
+            }
+
+            if (normalized === "~") {
+                return forApi ? "/" : "~";
+            }
+
+            // The local API may expose an internal /host prefix. Strip it consistently.
+            while (normalized === "/host" || normalized.startsWith("/host/")) {
+                normalized = normalized.slice(5);
+                if (!normalized) {
+                    normalized = "/";
+                }
+            }
+
+            normalized = normalized.replace(/\/{2,}/g, "/");
+            if (!normalized.startsWith("/")) {
+                normalized = `/${normalized}`;
+            }
+
+            if (!forApi && normalized === "/") {
+                return "~";
+            }
+            return normalized;
+        }
+
+        async function loadLocalFiles() {
+            try {
+                const requestPath = normalizeLocalPath(localState.path, true);
+                const response = await fetch(`/api/local/list?path=${encodeURIComponent(requestPath)}`);
+                const result = await response.json();
+                if (result.success) {
+                    localState.path = normalizeLocalPath(result.path, false);
+                    localState.entries = result.entries || [];
+                    renderLocalPane();
+                }
+            } catch (err) {
+                console.error("Failed to load local files:", err);
+            }
+        }
+
+        function renderLocalPane() {
+            const root = document.getElementById("localPaneFiles");
+            document.getElementById("localPanePath").textContent = localState.path;
+
+            if (!localState.entries.length) {
+                root.innerHTML = `<div class="empty-state" style="padding:var(--space-xl);"><div class="empty-state-title">Empty</div></div>`;
+                return;
+            }
+
+            root.innerHTML = "";
+            for (const entry of localState.entries) {
+                const row = document.createElement("div");
+                row.className = `file-row ${localState.selected === entry.name ? "selected" : ""}`;
+                row.innerHTML = `
+                    <div class="file-icon ${entry.is_dir ? 'folder' : ''}">${entry.is_dir ? icons.folder : icons.file}</div>
+                    <div class="file-name">${escapeHtml(entry.name)}</div>
+                    <div class="file-cell">${entry.is_dir ? '—' : formatSize(entry.size)}</div>
+                    <div class="file-cell file-cell-muted hide-mobile">${formatDate(entry.modified)}</div>
+                    <div class="file-cell hide-mobile">${entry.is_dir ? 'Folder' : getFileType(entry.name)}</div>
+                    <div class="file-cell-muted hide-mobile">${entry.permissions}</div>
+                    <div class="file-actions"></div>
+                `;
+
+                row.addEventListener("click", () => {
+                    localState.selected = entry.name;
+                    renderLocalPane();
+                    updateLocalBrowserUI();
+                });
+
+                row.addEventListener("dblclick", () => {
+                    if (entry.is_dir) {
+                        localState.path = normalizeLocalPath(entry.full_path, false);
+                        localState.selected = "";
+                        loadLocalFiles();
+                    }
+                });
+
+                root.appendChild(row);
+            }
+        }
+
+        function renderLocalBrowserRemotePane() {
+            const pane = getPane();
+            const root = document.getElementById("localBrowserRemoteFiles");
+            const entries = getFilteredEntries("left");
+
+            document.getElementById("localBrowserRemoteTitle").textContent = pane.host || "Not connected";
+            document.getElementById("localBrowserRemotePath").textContent = pane.path || "/";
+
+            if (!pane.sessionId) {
+                root.innerHTML = `<div class="empty-state" style="padding:var(--space-xl);"><div class="empty-state-title">Connect to a server</div></div>`;
+                return;
+            }
+
+            if (!entries.length) {
+                root.innerHTML = `<div class="empty-state" style="padding:var(--space-xl);"><div class="empty-state-title">Empty directory</div></div>`;
+                return;
+            }
+
+            root.innerHTML = "";
+            for (const entry of entries) {
+                const row = document.createElement("div");
+                row.className = "file-row";
+                row.innerHTML = `
+                    <div class="file-icon ${entry.is_dir ? 'folder' : ''}">${entry.is_dir ? icons.folder : icons.file}</div>
+                    <div class="file-name">${escapeHtml(entry.name)}</div>
+                    <div class="file-cell">${entry.is_dir ? '—' : formatSize(entry.size)}</div>
+                    <div class="file-cell file-cell-muted hide-mobile">${formatDate(entry.modified)}</div>
+                    <div class="file-cell hide-mobile">${entry.is_dir ? 'Folder' : getFileType(entry.name)}</div>
+                    <div class="file-cell-muted hide-mobile">${entry.permissions}</div>
+                `;
+                row.addEventListener("click", () => {
+                    if (entry.is_dir) {
+                        pane.path = joinPath(pane.path, entry.name);
+                        refreshPane("left");
+                        renderLocalBrowserRemotePane();
+                    }
+                });
+                root.appendChild(row);
+            }
+        }
+
+        function goUpLocal() {
+            const current = normalizeLocalPath(localState.path, false);
+            if (current === "~" || current === "/") return;
+            const parts = current.split("/").filter(Boolean);
+            parts.pop();
+            localState.path = parts.length ? "/" + parts.join("/") : "~";
+            localState.selected = "";
+            loadLocalFiles();
+        }
+
+        function goHomeLocal() {
+            localState.path = "~";
+            localState.selected = "";
+            loadLocalFiles();
+        }
+
+        function refreshLocal() {
+            loadLocalFiles();
+        }
+
+        function updateLocalBrowserUI() {
+            // Update transfer button state
+            const transferBtn = document.querySelector("#localBrowserView .transfer-btn");
+            if (transferBtn) {
+                const canTransfer = localState.selected && getPane().sessionId;
+                transferBtn.disabled = !canTransfer;
+                transferBtn.style.opacity = canTransfer ? "1" : "0.5";
+            }
+        }
+
+        async function uploadLocalToRemote() {
+            if (!localState.selected) {
+                showToast("Select a file to upload", true);
+                return;
+            }
+
+            const pane = getPane();
+            if (!pane.sessionId) {
+                showToast("Connect to remote first", true);
+                return;
+            }
+
+            const selectedEntry = localState.entries.find(e => e.name === localState.selected);
+            if (!selectedEntry) return;
+
+            if (selectedEntry.is_dir) {
+                showToast("Folders not supported yet. Select a file.", true);
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append("session_id", pane.sessionId);
+                formData.append("remote_path", pane.path);
+                formData.append("local_path", selectedEntry.full_path);
+
+                const response = await fetch("/api/local/upload", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showToast(`Uploaded ${selectedEntry.name}`);
+                    refreshPane("left");
+                    renderLocalBrowserRemotePane();
+                } else {
+                    showToast(result.error || "Upload failed", true);
+                }
+            } catch (err) {
+                showToast("Upload error", true);
+                console.error(err);
+            }
+        }
+
+        async function loadStatus() {
+            try {
+                const response = await fetch("/api/status");
+                const data = await response.json();
+                document.getElementById("serverStatus").innerHTML = `<span style="color:var(--success);display:inline-flex;gap:6px;align-items:center;">${icon("statusOnline")}Running</span> v${data.version}`;
+                document.getElementById("statusVersion").textContent = `v${data.version}`;
+            } catch {
+                document.getElementById("serverStatus").innerHTML = `<span style="color:var(--error);display:inline-flex;gap:6px;align-items:center;">${icon("statusOffline")}Offline</span>`;
+                document.getElementById("statusVersion").textContent = "";
+            }
+        }
+
+        async function loadBookmarks() {
+            // Get the container for remote bookmarks
+            const root = document.getElementById("remoteBookmarks");
+            if (!root) return;
+            
+            root.innerHTML = "<div style='padding: var(--space-md); text-align: center; color: var(--text-muted);'>Loading...</div>";
+            
+            // Load regular bookmarks
+            let bookmarks = [];
+            try {
+                const response = await fetch("/api/bookmarks");
+                bookmarks = await response.json();
+            } catch (e) {
+                console.log("Could not load bookmarks:", e);
+            }
+
+            root.innerHTML = "";
+            
+            if (!bookmarks || !bookmarks.length) {
+                const emptyMsg = document.createElement("div");
+                emptyMsg.style.cssText = "padding:var(--space-lg); text-align:center; color:var(--text-muted); font-size:var(--text-sm);";
+                emptyMsg.innerHTML = "No remote bookmarks yet.<br>Click Connect to add one.";
+                root.appendChild(emptyMsg);
+                return;
+            }
+
+            for (const bookmark of bookmarks) {
+                const row = document.createElement("div");
+                row.className = "bookmark-item";
+                const hostIcon = iconForHost(bookmark.host);
+                row.innerHTML = `
+                    <div class="bookmark-icon ${hostIcon.className}">${hostIcon.glyph}</div>
+                    <div class="bookmark-info">
+                        <div class="bookmark-name"></div>
+                        <div class="bookmark-meta"></div>
+                    </div>
+                    <div class="bookmark-actions">
+                        <button class="bookmark-btn" type="button" title="Edit">${icon("edit")}</button>
+                        <button class="bookmark-btn" type="button" title="Delete">${icon("trash")}</button>
+                    </div>
+                `;
+                row.querySelector(".bookmark-name").textContent = bookmark.name;
+                row.querySelector(".bookmark-meta").textContent = `${bookmark.username}@${bookmark.host}:${bookmark.port}`;
+                row.addEventListener("click", (e) => {
+                    if (!e.target.closest('.bookmark-actions')) {
+                        connectBookmark(bookmark.id, activePane);
+                    }
+                });
+                const [editBtn, deleteBtn] = row.querySelectorAll(".bookmark-actions button");
+                editBtn.addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    openBookmarkModal(bookmark);
+                });
+                deleteBtn.addEventListener("click", async (event) => {
+                    event.stopPropagation();
+                    if (!confirm(`Delete bookmark "${bookmark.name}"?`)) return;
+                    await fetch(`/api/bookmarks/${bookmark.id}`, { method: "DELETE" });
+                    await loadBookmarks();
+                    showToast("Bookmark deleted");
+                });
+                root.appendChild(row);
+            }
+        }
+
+        async function submitBookmark(event) {
+            event.preventDefault();
+            const id = document.getElementById("bookmarkId").value;
+            const payload = {
+                name: document.getElementById("bookmarkName").value.trim(),
+                host: document.getElementById("bookmarkHost").value.trim(),
+                port: Number(document.getElementById("bookmarkPort").value),
+                username: document.getElementById("bookmarkUsername").value.trim(),
+                password: document.getElementById("bookmarkPassword").value,
+                path: document.getElementById("bookmarkPath").value.trim() || "/"
+            };
+
+            const response = await fetch(id ? `/api/bookmarks/${id}` : "/api/bookmarks", {
+                method: id ? "PUT" : "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            if (!result.success && result.error) {
+                showToast(result.error, true);
+                return;
+            }
+            closeModal("bookmarkModal");
+            await loadBookmarks();
+            showToast(id ? "Bookmark updated" : "Bookmark saved");
+        }
+
+        async function submitConnect(event) {
+            event.preventDefault();
+            const targetPane = document.getElementById("connectTargetPane").value || activePane;
+            const keyData = await readOptionalFile(document.getElementById("privateKey").files[0]);
+            const payload = {
+                host: document.getElementById("host").value.trim(),
+                port: Number(document.getElementById("port").value),
+                username: document.getElementById("username").value.trim(),
+                password: document.getElementById("password").value,
+                path: document.getElementById("path").value.trim() || "/",
+                key_data: keyData
+            };
+
+            const response = await fetch("/api/connect", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            if (!result.success) {
+                showToast(result.error || "Connection failed", true);
+                return;
+            }
+
+            panes[targetPane].sessionId = result.session_id;
+            panes[targetPane].host = result.host;
+            panes[targetPane].path = result.path || "/";
+            panes[targetPane].selected = "";
+            panes[targetPane].entries = [];
+            activePane = targetPane;
+            closeModal("connectModal");
+            await refreshPane(targetPane);
+            showToast(result.message || "Connected");
+            
+            // Auto-save to bookmarks if not already exists
+            await autoSaveBookmark(payload);
+        }
+
+        async function autoSaveBookmark(connectionData) {
+            // Check if bookmark already exists
+            const existingBookmark = bookmarks.find(b => 
+                b.host === connectionData.host && 
+                b.username === connectionData.username &&
+                b.port === connectionData.port
+            );
+            
+            if (existingBookmark) {
+                return; // Already bookmarked
+            }
+            
+            // Create auto-generated name
+            const name = `${connectionData.username}@${connectionData.host}`;
+            
+            const bookmarkPayload = {
+                name: name,
+                host: connectionData.host,
+                port: connectionData.port,
+                username: connectionData.username,
+                password: connectionData.password,
+                path: connectionData.path || "/"
+            };
+            
+            try {
+                const response = await fetch("/api/bookmarks", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(bookmarkPayload)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    await loadBookmarks();
+                    showToast("Saved to bookmarks");
+                }
+            } catch (err) {
+                console.log("Auto-bookmark failed:", err);
+            }
+        }
+
+        async function connectBookmark(bookmarkId, targetPane = activePane) {
+            const response = await fetch(`/api/bookmarks/${bookmarkId}/connect`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({})
+            });
+            const result = await response.json();
+            if (!result.success) {
+                showToast(result.error || "Connection failed", true);
+                return;
+            }
+            panes[targetPane].sessionId = result.session_id;
+            panes[targetPane].host = result.host;
+            panes[targetPane].path = result.path || "/";
+            panes[targetPane].selected = "";
+            panes[targetPane].entries = [];
+            activePane = targetPane;
+            await refreshPane(targetPane);
+            showToast(`Connected ${targetPane} pane`);
+        }
+
+        async function refreshPane(name) {
+            const pane = panes[name];
+            if (!pane.sessionId) {
+                pane.entries = [];
+                renderWorkspace();
+                return;
+            }
+            const response = await fetch("/api/list", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ session_id: pane.sessionId, path: pane.path })
+            });
+            const result = await response.json();
+            if (!result.success) {
+                showToast(result.error || "Failed to load files", true);
+                if (response.status === 404) {
+                    pane.sessionId = "";
+                    pane.host = "";
+                    pane.path = "/";
+                    pane.entries = [];
+                    pane.selected = "";
+                }
+                renderWorkspace();
+                return;
+            }
+            pane.entries = result.entries || [];
+            renderWorkspace();
+            await loadStatus();
+        }
+
+        async function refreshAll() {
+            await refreshPane("left");
+            if (dualPaneMode || panes.right.sessionId) {
+                await refreshPane("right");
+            }
+        }
+
+        function renderWorkspace() {
+            renderSingleList();
+            renderPane("left");
+            renderPane("right");
+            syncHeader();
+        }
+
+        function getFilteredEntries(name) {
+            const pane = panes[name];
+            const query = document.getElementById("searchInput").value.trim().toLowerCase();
+            pane.filtered = pane.entries
+                .filter((entry) => entry.name.toLowerCase().includes(query))
+                .sort(compareEntries);
+            return pane.filtered;
+        }
+
+        function compareEntries(a, b) {
+            const direction = currentSortDirection === "asc" ? 1 : -1;
+            const aDir = a.is_dir ? 0 : 1;
+            const bDir = b.is_dir ? 0 : 1;
+            if (aDir !== bDir) {
+                return aDir - bDir;
+            }
+
+            switch (currentSortField) {
+                case "size":
+                    return (a.size - b.size) * direction;
+                case "modified":
+                    return (new Date(a.modified).getTime() - new Date(b.modified).getTime()) * direction;
+                case "type":
+                    return ((a.is_dir ? "directory" : "file").localeCompare(b.is_dir ? "directory" : "file")) * direction;
+                case "permissions":
+                    return (a.permissions || "").localeCompare(b.permissions || "") * direction;
+                case "name":
+                default:
+                    return (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }) * direction;
+            }
+        }
+
+        function sortBy(field) {
+            if (currentSortField === field) {
+                currentSortDirection = currentSortDirection === "asc" ? "desc" : "asc";
+            } else {
+                currentSortField = field;
+                currentSortDirection = "asc";
+            }
+            renderWorkspace();
+        }
+
+        function renderSingleList() {
+            const pane = panes.left;
+            const root = document.getElementById("fileTableBody");
+            const entries = getFilteredEntries("left");
+
+            if (!pane.sessionId) {
+                root.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">${icon("folder")}</div>
+                        <div class="empty-state-title">No connection</div>
+                        <div class="empty-state-text">Select a bookmark from the sidebar or click Connect to start browsing.</div>
+                    </div>`;
+                return;
+            }
+
+            if (!entries.length) {
+                const message = document.getElementById("searchInput").value ? "No files match your search." : "This directory is empty.";
+                root.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">${icon("folder")}</div>
+                        <div class="empty-state-title">${message}</div>
+                    </div>`;
+                return;
+            }
+
+            root.innerHTML = "";
+            for (const entry of entries) {
+                const row = document.createElement("div");
+                row.className = `file-row ${pane.selected === entry.name ? "selected" : ""}`;
+                row.setAttribute("tabindex", "0");
+                row.innerHTML = `
+                    <div class="file-icon ${entry.is_dir ? 'folder' : getFileIconClass(entry.name)}">${entry.is_dir ? icons.folder : icons.file}</div>
+                    <div class="file-name">${escapeHtml(entry.name)}</div>
+                    <div class="file-cell">${entry.is_dir ? '—' : formatSize(entry.size)}</div>
+                    <div class="file-cell file-cell-muted hide-mobile">${formatDate(entry.modified)}</div>
+                    <div class="file-cell hide-mobile">${entry.is_dir ? 'Folder' : getFileType(entry.name)}</div>
+                    <div class="file-cell-muted hide-mobile">${entry.permissions}</div>
+                    <div class="file-actions"></div>
+                `;
+                
+                row.addEventListener("click", () => {
+                    pane.selected = entry.name;
+                    if (entry.is_dir) openDirectory("left", entry.name);
+                    else renderWorkspace();
+                });
+                
+                row.addEventListener("dblclick", () => {
+                    if (!entry.is_dir && isPreviewable(entry.name)) {
+                        previewFile("left", entry.name);
+                    }
+                });
+
+                const actions = row.querySelector(".file-actions");
+                if (!entry.is_dir && isPreviewable(entry.name)) {
+                    actions.appendChild(actionButton("eye", async (ev) => {
+                        ev.stopPropagation();
+                        await previewFile("left", entry.name);
+                    }));
+                }
+                if (!entry.is_dir) {
+                    actions.appendChild(actionButton("download", async (ev) => {
+                        ev.stopPropagation();
+                        await downloadFile("left", entry.name);
+                    }));
+                }
+                actions.appendChild(actionButton("edit", async (ev) => {
+                    ev.stopPropagation();
+                    await renameEntry("left", entry.name);
+                }));
+                actions.appendChild(actionButton("trash", async (ev) => {
+                    ev.stopPropagation();
+                    await deleteEntry("left", entry.name);
+                }, true));
+                
+                root.appendChild(row);
+            }
+        }
+
+        function renderPane(name) {
+            const pane = panes[name];
+            const root = document.getElementById(`${name}PaneFiles`);
+            const entries = getFilteredEntries(name);
+            
+            // Update pane header
+            document.getElementById(`${name}PaneTitle`).textContent = pane.host || "No connection";
+            document.getElementById(`${name}PanePathBar`).textContent = pane.path || "/";
+            
+            // Update active state
+            document.getElementById(`${name}Pane`).classList.toggle("active", name === activePane);
+
+            if (!pane.sessionId) {
+                root.innerHTML = `
+                    <div class="empty-state" style="padding:var(--space-xl);">
+                        <div class="empty-state-icon">${icon("server")}</div>
+                        <div class="empty-state-title">No connection</div>
+                        <div class="empty-state-text">Click Connect to start browsing files.</div>
+                    </div>`;
+                return;
+            }
+
+            if (!entries.length) {
+                const message = document.getElementById("searchInput").value ? "No files match." : "Empty directory";
+                root.innerHTML = `
+                    <div class="empty-state" style="padding:var(--space-xl);">
+                        <div class="empty-state-title">${message}</div>
+                    </div>`;
+                return;
+            }
+
+            root.innerHTML = "";
+            for (const entry of entries) {
+                const row = document.createElement("div");
+                row.className = `file-row ${pane.selected === entry.name ? "selected" : ""}`;
+                row.innerHTML = `
+                    <div class="file-icon ${entry.is_dir ? 'folder' : ''}">${entry.is_dir ? icons.folder : icons.file}</div>
+                    <div class="file-name">${escapeHtml(entry.name)}</div>
+                    <div class="file-cell">${entry.is_dir ? '—' : formatSize(entry.size)}</div>
+                    <div class="file-cell file-cell-muted hide-mobile">${formatDate(entry.modified)}</div>
+                    <div class="file-cell hide-mobile">${entry.is_dir ? 'Folder' : getFileType(entry.name)}</div>
+                    <div class="file-cell-muted hide-mobile">${entry.permissions}</div>
+                    <div class="file-actions"></div>
+                `;
+                row.addEventListener("click", () => {
+                    activePane = name;
+                    pane.selected = entry.name;
+                    if (entry.is_dir) openDirectory(name, entry.name);
+                    else renderWorkspace();
+                });
+                root.appendChild(row);
+            }
+        }
+
+        function actionButton(iconName, onClick, danger = false) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = `file-action-btn${danger ? " danger" : ""}`;
+            button.innerHTML = icon(iconName);
+            button.addEventListener("click", onClick);
+            return button;
+        }
+
+        function syncHeader() {
+            const pane = getPane();
+            
+            // Update connection status
+            const statusDot = document.getElementById("statusDot");
+            const connectionText = document.getElementById("connectionText");
+            
+            if (pane.sessionId) {
+                statusDot.className = "status-dot connected";
+                connectionText.textContent = pane.host;
+            } else {
+                statusDot.className = "status-dot";
+                connectionText.textContent = "Offline";
+            }
+            
+            // Update breadcrumbs
+            renderBreadcrumbs(pane.path);
+            
+            // Update path input
+            document.getElementById("pathInput").value = pane.path || "/";
+            
+            // Update delete button state
+            const deleteBtn = document.getElementById("deleteBtn");
+            if (deleteBtn) {
+                deleteBtn.disabled = !pane.sessionId || !pane.selected;
+            }
+            
+            // Update status bar
+            updateStatusBar();
+        }
+
+        function updateStatusBar() {
+            const pane = getPane();
+            const itemCount = (pane.filtered || []).length || pane.entries.length || 0;
+            
+            document.getElementById("statusItems").textContent = `${itemCount} item${itemCount !== 1 ? 's' : ''}`;
+            document.getElementById("statusSelected").textContent = pane.selected ? `Selected: ${pane.selected}` : "";
+            document.getElementById("statusMode").textContent = dualPaneMode ? "Dual pane" : "Single pane";
+        }
+
+        function renderBreadcrumbs(path) {
+            const container = document.getElementById("breadcrumbs");
+            if (!path || path === "/") {
+                container.innerHTML = `
+                    <div class="breadcrumb-item root" onclick="navigateToPath('/')">
+                        ${icon("home")}
+                    </div>`;
+                return;
+            }
+
+            const parts = path.split("/").filter(Boolean);
+            let html = `
+                <div class="breadcrumb-item root" onclick="navigateToPath('/')">
+                    ${icon("home")}
+                </div>`;
+            
+            let currentPath = "";
+            parts.forEach((part, index) => {
+                currentPath += "/" + part;
+                const isLast = index === parts.length - 1;
+                html += `
+                    <span class="breadcrumb-separator">/</span>
+                    <div class="breadcrumb-item ${isLast ? 'active' : ''}" onclick="navigateToPath('${currentPath}')">
+                        ${escapeHtml(part)}
+                    </div>`;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function navigateToPath(path) {
+            const pane = getPane();
+            if (!pane.sessionId) return;
+            pane.path = normalizePath(path);
+            pane.selected = "";
+            refreshPane(activePane);
+        }
+
+        function handlePathInput(event) {
+            if (event.key === "Enter") {
+                const path = event.target.value;
+                navigateToPath(path);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function getFileIconClass(name) {
+            const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
+            if (["jpg", "jpeg", "png", "gif", "svg", "webp"].includes(ext)) return "image";
+            if (["py", "js", "ts", "html", "css", "json", "yaml", "xml"].includes(ext)) return "code";
+            return "";
+        }
+
+        function getFileType(name) {
+            const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
+            const types = {
+                "txt": "Text", "md": "Markdown", "json": "JSON", "xml": "XML",
+                "yaml": "YAML", "yml": "YAML", "py": "Python", "js": "JavaScript",
+                "ts": "TypeScript", "html": "HTML", "css": "CSS", "sh": "Shell",
+                "jpg": "Image", "jpeg": "Image", "png": "Image", "gif": "Image",
+                "pdf": "PDF", "zip": "Archive", "tar": "Archive", "gz": "Archive"
+            };
+            return types[ext] || ext.toUpperCase() || "File";
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return "—";
+            const date = new Date(dateString);
+            const now = new Date();
+            const diff = now - date;
+            
+            // Less than 24 hours ago
+            if (diff < 86400000) {
+                if (diff < 3600000) return "Just now";
+                return `${Math.floor(diff / 3600000)}h ago`;
+            }
+            
+            // Less than 7 days ago
+            if (diff < 604800000) {
+                return `${Math.floor(diff / 86400000)}d ago`;
+            }
+            
+            // Otherwise show date
+            return date.toLocaleDateString();
+        }
+
+        function normalizePath(path) {
+            if (!path) return "/";
+            const collapsed = path.replace(/\/+/g, "/");
+            return collapsed.startsWith("/") ? collapsed : `/${collapsed}`;
+        }
+
+        function joinPath(base, name) {
+            return normalizePath(base === "/" ? `/${name}` : `${base}/${name}`);
+        }
+
+        function openDirectory(name, entryName) {
+            const pane = panes[name];
+            pane.path = joinPath(pane.path, entryName);
+            pane.selected = "";
+            refreshPane(name);
+        }
+
+        function goUpPane(name) {
+            const pane = panes[name];
+            if (!pane.sessionId || pane.path === "/") return;
+            const parts = pane.path.split("/").filter(Boolean);
+            parts.pop();
+            pane.path = parts.length ? `/${parts.join("/")}` : "/";
+            pane.selected = "";
+            refreshPane(name);
+        }
+
+        function goUpActive() {
+            goUpPane(activePane);
+        }
+
+        function promptPath() {
+            const pane = getPane();
+            if (!pane.sessionId) return;
+            const nextPath = prompt("Enter remote path", pane.path);
+            if (!nextPath) return;
+            pane.path = normalizePath(nextPath);
+            pane.selected = "";
+            refreshPane(activePane);
+        }
+
+        async function disconnectPane(name) {
+            const pane = panes[name];
+            if (!pane.sessionId) return;
+            await fetch("/api/disconnect", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ session_id: pane.sessionId })
+            });
+            pane.sessionId = "";
+            pane.host = "";
+            pane.path = "/";
+            pane.entries = [];
+            pane.filtered = [];
+            pane.selected = "";
+        }
+
+        async function disconnectActivePane() {
+            await disconnectPane(activePane);
+            renderWorkspace();
+            await loadStatus();
+            showToast(`Disconnected ${activePane} pane`);
+        }
+
+        async function downloadFile(name, fileName) {
+            const pane = panes[name];
+            const response = await fetch("/api/download", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ session_id: pane.sessionId, remote_path: joinPath(pane.path, fileName) })
+            });
+            if (!response.ok) {
+                showToast("Download failed", true);
+                return;
+            }
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = fileName;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(url);
+            showToast("Download started");
+        }
+
+        async function previewFile(name, fileName) {
+            const pane = panes[name];
+            const response = await fetch("/api/preview", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ session_id: pane.sessionId, path: joinPath(pane.path, fileName) })
+            });
+            const result = await response.json();
+            if (!result.success) {
+                showToast(result.error || "Preview failed", true);
+                return;
+            }
+            document.getElementById("previewTitle").textContent = `Preview: ${fileName}`;
+            document.getElementById("previewBody").textContent = result.content + (result.truncated ? "\n\n[truncated]" : "");
+            openModal("previewModal");
+        }
+
+        async function renameEntry(name, entryName) {
+            const pane = panes[name];
+            const nextName = prompt("Rename entry", entryName);
+            if (!nextName || nextName === entryName) return;
+            const response = await fetch("/api/rename", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    session_id: pane.sessionId,
+                    old_path: joinPath(pane.path, entryName),
+                    new_path: joinPath(pane.path, nextName)
+                })
+            });
+            const result = await response.json();
+            if (!result.success) {
+                showToast(result.error || "Rename failed", true);
+                return;
+            }
+            showToast("Renamed");
+            await refreshPane(name);
+        }
+
+        async function deleteEntry(name, entryName) {
+            const pane = panes[name];
+            if (!confirm(`Delete "${entryName}"? Directories are removed recursively.`)) return;
+            const response = await fetch("/api/delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ session_id: pane.sessionId, path: joinPath(pane.path, entryName) })
+            });
+            const result = await response.json();
+            if (!result.success) {
+                showToast(result.error || "Delete failed", true);
+                return;
+            }
+            showToast("Deleted");
+            await refreshPane(name);
+        }
+
+        async function submitNewFolder(event) {
+            event.preventDefault();
+            const pane = getPane();
+            const folderName = document.getElementById("folderName").value.trim();
+            if (!folderName) return;
+            const response = await fetch("/api/mkdir", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ session_id: pane.sessionId, path: joinPath(pane.path, folderName) })
+            });
+            const result = await response.json();
+            if (!result.success) {
+                showToast(result.error || "Create folder failed", true);
+                return;
+            }
+            closeModal("folderModal");
+            showToast("Folder created");
+            await refreshPane(activePane);
+        }
+
+        function triggerUpload() {
+            const pane = getPane();
+            if (!pane.sessionId) {
+                showToast("Connect the active pane first", true);
+                return;
+            }
+            document.getElementById("uploadInput").click();
+        }
+
+        function bindUpload() {
+            document.getElementById("uploadInput").addEventListener("change", async (event) => {
+                const files = Array.from(event.target.files || []);
+                if (!files.length) return;
+                for (const file of files) {
+                    await uploadFile(activePane, file);
+                }
+                event.target.value = "";
+                await refreshPane(activePane);
+            });
+        }
+
+        async function uploadFile(name, file) {
+            const pane = panes[name];
+            const formData = new FormData();
+            formData.append("session_id", pane.sessionId);
+            formData.append("remote_path", pane.path);
+            formData.append("file", file);
+            const response = await fetch("/api/upload", { method: "POST", body: formData });
+            const result = await response.json();
+            if (!result.success) {
+                showToast(result.error || `Upload failed for ${file.name}`, true);
+                return;
+            }
+            showToast(`Uploaded ${file.name} to ${name}`);
+        }
+
+        function bindDropzone() {
+            const targets = ["singleView", "dualView"];
+            for (const id of targets) {
+                const zone = document.getElementById(id);
+                const tableBody = zone.querySelector('.table-body');
+                const dropOverlay = tableBody?.querySelector('#dropOverlay');
+                let dragCounter = 0;
+
+                ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+                    zone.addEventListener(eventName, (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    });
+                });
+
+                if (dropOverlay) {
+                    zone.addEventListener("dragenter", () => {
+                        dragCounter++;
+                        if (dragCounter === 1) {
+                            dropOverlay.style.display = "flex";
+                        }
+                    });
+
+                    zone.addEventListener("dragleave", () => {
+                        dragCounter--;
+                        if (dragCounter === 0) {
+                            dropOverlay.style.display = "none";
+                        }
+                    });
+
+                    zone.addEventListener("drop", async (event) => {
+                        dragCounter = 0;
+                        dropOverlay.style.display = "none";
+                    const pane = getPane();
+                    if (!pane.sessionId) {
+                        showToast("Connect the active pane first", true);
+                        return;
+                    }
+                    const files = Array.from(event.dataTransfer.files || []);
+                    for (const file of files) {
+                        await uploadFile(activePane, file);
+                    }
+                    await refreshPane(activePane);
+                });
+            }
+        }
+}
+
+        async function transferSelected(direction) {
+            const sourceName = direction === "left-to-right" ? "left" : "right";
+            const targetName = direction === "left-to-right" ? "right" : "left";
+            const source = panes[sourceName];
+            const target = panes[targetName];
+            const conflictMode = document.getElementById("transferConflictMode")?.value || "overwrite";
+
+            if (!source.sessionId || !target.sessionId) {
+                showToast("Connect both panes first", true);
+                return;
+            }
+            if (!source.selected) {
+                showToast(`Select a file in the ${sourceName} pane`, true);
+                return;
+            }
+            const selectedEntry = source.entries.find((entry) => entry.name === source.selected);
+            if (!selectedEntry) {
+                showToast("Selected item was not found", true);
+                return;
+            }
+
+            const response = await fetch("/api/transfer", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    source_session_id: source.sessionId,
+                    target_session_id: target.sessionId,
+                    file_name: source.selected,
+                    source_path: source.path,
+                    target_path: target.path,
+                    conflict_mode: conflictMode
+                })
+            });
+            const result = await response.json();
+            if (!result.success) {
+                showToast(result.error || "Transfer failed", true);
+                return;
+            }
+            showToast(result.message || `Transferred ${source.selected}`);
+            await refreshPane(targetName);
+        }
+
+        function formatSize(bytes) {
+            if (!bytes) return "0 B";
+            const units = ["B", "KB", "MB", "GB", "TB"];
+            let value = bytes;
+            let index = 0;
+            while (value >= 1024 && index < units.length - 1) {
+                value /= 1024;
+                index += 1;
+            }
+            return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+        }
+
+        function isPreviewable(name) {
+            const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
+            return textExtensions.has(ext);
+        }
+
+        function iconForHost(host) {
+            const value = host.toLowerCase();
+            if (value.includes("ubuntu")) return { glyph: icon("server"), className: "host-ubuntu" };
+            if (value.includes("linux") || value.includes("debian")) return { glyph: icon("server"), className: "host-linux" };
+            if (value.includes("docker")) return { glyph: icon("server"), className: "host-generic" };
+            if (value.includes("pi") || value.includes("raspberry")) return { glyph: icon("server"), className: "host-pi" };
+            if (value.includes("aws") || value.includes("ec2")) return { glyph: icon("server"), className: "host-generic" };
+            return { glyph: icon("server"), className: "host-generic" };
+        }
+
+        function readOptionalFile(file) {
+            if (!file) return Promise.resolve(null);
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        document.addEventListener("keydown", (event) => {
+            // Close modals with Escape
+            if (event.key === "Escape") {
+                document.querySelectorAll(".modal-overlay.open").forEach((node) => node.classList.remove("open"));
+            }
+            
+            // Search shortcut
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+                event.preventDefault();
+                document.getElementById("searchInput").focus();
+            }
+            
+            // Keyboard navigation in file table
+            if (document.activeElement?.classList.contains("file-row")) {
+                const pane = getPane();
+                const entries = getFilteredEntries(activePane);
+                const currentIndex = entries.findIndex(e => e.name === pane.selected);
+                
+                if (event.key === "ArrowDown" && currentIndex < entries.length - 1) {
+                    event.preventDefault();
+                    pane.selected = entries[currentIndex + 1].name;
+                    renderWorkspace();
+                    // Focus the new selected row
+                    setTimeout(() => {
+                        const rows = document.querySelectorAll(".file-row.selected");
+                        rows.forEach(row => row.focus());
+                    }, 0);
+                } else if (event.key === "ArrowUp" && currentIndex > 0) {
+                    event.preventDefault();
+                    pane.selected = entries[currentIndex - 1].name;
+                    renderWorkspace();
+                    setTimeout(() => {
+                        const rows = document.querySelectorAll(".file-row.selected");
+                        rows.forEach(row => row.focus());
+                    }, 0);
+                } else if (event.key === "Enter") {
+                    event.preventDefault();
+                    const entry = entries[currentIndex];
+                    if (entry) {
+                        if (entry.is_dir) {
+                            openDirectory(activePane, entry.name);
+                        } else if (isPreviewable(entry.name)) {
+                            previewFile(activePane, entry.name);
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
