@@ -785,7 +785,11 @@ async def transfer_file(request: TransferRequest):
 
     source_file_path = join_remote_path(request.source_path, request.file_name)
     target_file_path = join_remote_path(request.target_path, request.file_name)
-    conflict_mode = request.conflict_mode if request.conflict_mode in {"overwrite", "skip"} else "overwrite"
+    conflict_mode = (
+        request.conflict_mode
+        if request.conflict_mode in {"overwrite", "skip"}
+        else "overwrite"
+    )
     temp_dir = tempfile.mkdtemp(prefix="sftp-transfer-")
     stats = {"copied": 0, "skipped": 0}
     try:
@@ -871,6 +875,49 @@ async def status():
         "session_ttl_seconds": SESSION_TTL_SECONDS,
         "encryption": "enabled",
     }
+
+
+@app.post("/api/local/upload")
+async def upload_local_to_remote(
+    session_id: str = Form(...),
+    remote_path: str = Form(...),
+    local_path: str = Form(...),
+):
+    """Upload a local file to remote server"""
+    session = get_session_or_404(session_id)
+    if isinstance(session, JSONResponse):
+        return session
+
+    try:
+        # Security check: ensure local_path is within HOST_HOME
+        base_path = Path(HOST_HOME).resolve()
+        local_file = Path(local_path).resolve()
+
+        try:
+            local_file.relative_to(base_path)
+        except ValueError:
+            return error_response("Access denied: file outside allowed directory", 403)
+
+        if not local_file.exists():
+            return error_response("Local file not found", 404)
+
+        if not local_file.is_file():
+            return error_response("Path is not a file", 400)
+
+        # Upload to remote
+        target_path = join_remote_path(remote_path, local_file.name)
+
+        with open(local_file, "rb") as f:
+            with session.sftp.file(target_path, "wb") as remote_file:
+                while True:
+                    chunk = f.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    remote_file.write(chunk)
+
+        return {"success": True, "message": f"Uploaded {local_file.name}"}
+    except Exception as exc:
+        return error_response(str(exc))
 
 
 @app.get("/api/local-info")
