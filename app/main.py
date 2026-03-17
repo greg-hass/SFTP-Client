@@ -606,7 +606,11 @@ async def connect_bookmark(bookmark_id: str, request: Request):
     try:
         return connect_with_saved_bookmark(row, body.get("key_data"))
     except Exception as exc:
-        return error_response(str(exc))
+        import traceback
+
+        print(f"Connection error: {exc}")
+        traceback.print_exc()
+        return error_response(f"Connection failed: {str(exc)}")
 
 
 @app.post("/api/connect")

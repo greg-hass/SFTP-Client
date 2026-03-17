@@ -2117,16 +2117,18 @@
         }
 
         async function connectBookmark(bookmarkId, targetPane = activePane) {
-            const response = await fetch(`/api/bookmarks/${bookmarkId}/connect`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({})
-            });
-            const result = await response.json();
-            if (!result.success) {
-                showToast(result.error || "Connection failed", true);
-                return;
-            }
+            try {
+                const response = await fetch(`/api/bookmarks/${bookmarkId}/connect`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({})
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    showToast(result.error || "Connection failed", true);
+                    console.error("Connection failed:", result.error);
+                    return;
+                }
             panes[targetPane].sessionId = result.session_id;
             panes[targetPane].host = result.host;
             panes[targetPane].path = result.path || "/";
