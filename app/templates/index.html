@@ -1868,17 +1868,18 @@
         }
 
         // Local Browser Remote pane navigation
-        function goUpLocalBrowserRemote() {
+        async function goUpLocalBrowserRemote() {
             const pane = panes.left;
             if (!pane.sessionId || pane.path === "/") return;
             const parts = pane.path.split("/").filter(Boolean);
             parts.pop();
             pane.path = parts.length ? `/${parts.join("/")}` : "/";
             pane.selected = "";
+            await refreshPane("left");
             renderLocalBrowserRemotePane();
         }
 
-        function goHomeLocalBrowserRemote() {
+        async function goHomeLocalBrowserRemote() {
             const pane = panes.left;
             if (!pane.sessionId) {
                 showToast("Not connected", true);
@@ -1886,10 +1887,12 @@
             }
             pane.path = "/";
             pane.selected = "";
+            await refreshPane("left");
             renderLocalBrowserRemotePane();
         }
 
-        function refreshLocalBrowserRemote() {
+        async function refreshLocalBrowserRemote() {
+            await refreshPane("left");
             renderLocalBrowserRemotePane();
         }
 
