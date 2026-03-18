@@ -1251,6 +1251,9 @@
                             </div>
                         </div>
                         <div class="toolbar-actions">
+                            <button class="btn btn-icon" onclick="goUpLocalBrowserRemote()" title="Go up"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                            <button class="btn btn-icon" onclick="goHomeLocalBrowserRemote()" title="Home"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;"><path d="M4 11.5l8-6 8 6V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1v-7.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+                            <button class="btn btn-icon" onclick="refreshLocalBrowserRemote()" title="Refresh"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;"><path d="M23 4v6h-6M1 20v-6h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                             <button class="btn" onclick="openConnectModal('left')">Connect</button>
                         </div>
                     </div>
@@ -1862,6 +1865,32 @@
             pane.path = "/";
             pane.selected = "";
             refreshPane(paneName);
+        }
+
+        // Local Browser Remote pane navigation
+        function goUpLocalBrowserRemote() {
+            const pane = panes.left;
+            if (!pane.sessionId || pane.path === "/") return;
+            const parts = pane.path.split("/").filter(Boolean);
+            parts.pop();
+            pane.path = parts.length ? `/${parts.join("/")}` : "/";
+            pane.selected = "";
+            renderLocalBrowserRemotePane();
+        }
+
+        function goHomeLocalBrowserRemote() {
+            const pane = panes.left;
+            if (!pane.sessionId) {
+                showToast("Not connected", true);
+                return;
+            }
+            pane.path = "/";
+            pane.selected = "";
+            renderLocalBrowserRemotePane();
+        }
+
+        function refreshLocalBrowserRemote() {
+            renderLocalBrowserRemotePane();
         }
 
         function refreshLocal() {
