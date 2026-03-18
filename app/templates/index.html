@@ -1159,6 +1159,9 @@
             </div>
 
             <div class="header-section">
+                <button class="btn btn-icon" id="hiddenFilesToggle" onclick="toggleHiddenFiles()" title="Show hidden files">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
+                </button>
                 <div class="search-box">
                     <span class="search-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.8"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
                     <input type="search" class="search-input" id="searchInput" placeholder="Filter files..." oninput="renderWorkspace()">
@@ -1518,6 +1521,9 @@
             entries: [],
             selected: ""
         };
+        
+        // Hidden files toggle
+        let showHiddenFiles = false;
 
         document.addEventListener("DOMContentLoaded", async () => {
             console.log("SFTP Client initializing...");
@@ -1762,13 +1768,19 @@
             const root = document.getElementById("localPaneFiles");
             document.getElementById("localPanePath").textContent = localState.path;
 
-            if (!localState.entries.length) {
+            // Filter entries based on hidden files setting
+            const filteredEntries = localState.entries.filter(entry => {
+                if (!showHiddenFiles && isHiddenFile(entry.name)) return false;
+                return true;
+            });
+
+            if (!filteredEntries.length) {
                 root.innerHTML = `<div class="empty-state" style="padding:var(--space-xl);"><div class="empty-state-title">Empty</div></div>`;
                 return;
             }
 
             root.innerHTML = "";
-            for (const entry of localState.entries) {
+            for (const entry of filteredEntries) {
                 const row = document.createElement("div");
                 row.className = `file-row ${localState.selected === entry.name ? "selected" : ""}`;
                 row.innerHTML = `
@@ -1898,6 +1910,24 @@
 
         function refreshLocal() {
             loadLocalFiles();
+        }
+
+        function toggleHiddenFiles() {
+            showHiddenFiles = !showHiddenFiles;
+            const btn = document.getElementById("hiddenFilesToggle");
+            if (btn) {
+                btn.style.opacity = showHiddenFiles ? "1" : "0.5";
+                btn.title = showHiddenFiles ? "Hide hidden files" : "Show hidden files";
+            }
+            renderWorkspace();
+            renderLocalPane();
+            renderLocalBrowserRemotePane();
+            renderPane("left");
+            renderPane("right");
+        }
+
+        function isHiddenFile(name) {
+            return name.startsWith(".");
         }
 
         function updateLocalBrowserUI() {
@@ -2256,7 +2286,13 @@
             const pane = panes[name];
             const query = document.getElementById("searchInput").value.trim().toLowerCase();
             pane.filtered = pane.entries
-                .filter((entry) => entry.name.toLowerCase().includes(query))
+                .filter((entry) => {
+                    // Filter by search query
+                    if (!entry.name.toLowerCase().includes(query)) return false;
+                    // Filter hidden files
+                    if (!showHiddenFiles && isHiddenFile(entry.name)) return false;
+                    return true;
+                })
                 .sort(compareEntries);
             return pane.filtered;
         }
