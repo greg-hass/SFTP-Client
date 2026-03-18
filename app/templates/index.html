@@ -1265,7 +1265,10 @@
                     <div class="pane-header">
                         <div class="pane-title" id="leftPaneTitle">No connection</div>
                         <div class="toolbar-actions">
-                            <button class="btn btn-icon" onclick="setActivePane('left')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="4"/></svg></button>
+                            <button class="btn btn-icon" onclick="goUpPane('left')" title="Go up"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                            <button class="btn btn-icon" onclick="goHomeRemote('left')" title="Home"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;"><path d="M4 11.5l8-6 8 6V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1v-7.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+                            <button class="btn btn-icon" onclick="refreshPane('left')" title="Refresh"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;"><path d="M23 4v6h-6M1 20v-6h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                            <button class="btn btn-icon" onclick="setActivePane('left')" title="Active"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:16px;height:16px;"><circle cx="12" cy="12" r="4"/></svg></button>
                             <button class="btn" onclick="openConnectModal('left')">Connect</button>
                         </div>
                     </div>
@@ -1286,7 +1289,10 @@
                     <div class="pane-header">
                         <div class="pane-title" id="rightPaneTitle">No connection</div>
                         <div class="toolbar-actions">
-                            <button class="btn btn-icon" onclick="setActivePane('right')"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/></svg></button>
+                            <button class="btn btn-icon" onclick="goUpPane('right')" title="Go up"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                            <button class="btn btn-icon" onclick="goHomeRemote('right')" title="Home"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;"><path d="M4 11.5l8-6 8 6V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1v-7.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+                            <button class="btn btn-icon" onclick="refreshPane('right')" title="Refresh"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;"><path d="M23 4v6h-6M1 20v-6h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                            <button class="btn btn-icon" onclick="setActivePane('right')" title="Active"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:16px;height:16px;"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/></svg></button>
                             <button class="btn" onclick="openConnectModal('right')">Connect</button>
                         </div>
                     </div>
@@ -1847,6 +1853,17 @@
             loadLocalFiles();
         }
 
+        function goHomeRemote(paneName) {
+            const pane = panes[paneName];
+            if (!pane.sessionId) {
+                showToast("Not connected", true);
+                return;
+            }
+            pane.path = "/";
+            pane.selected = "";
+            refreshPane(paneName);
+        }
+
         function refreshLocal() {
             loadLocalFiles();
         }
@@ -2368,8 +2385,10 @@
                     <div class="file-actions"></div>
                 `;
                 row.addEventListener("click", () => {
+                    console.log(`Clicked ${entry.name} in ${name} pane`);
                     activePane = name;
                     pane.selected = entry.name;
+                    console.log(`Set activePane to ${name}, selected: ${pane.selected}`);
                     if (entry.is_dir) openDirectory(name, entry.name);
                     else renderWorkspace();
                 });
@@ -2765,11 +2784,15 @@
 }
 
         async function transferSelected(direction) {
+            console.log(`Transfer initiated: ${direction}`);
             const sourceName = direction === "left-to-right" ? "left" : "right";
             const targetName = direction === "left-to-right" ? "right" : "left";
             const source = panes[sourceName];
             const target = panes[targetName];
             const conflictMode = document.getElementById("transferConflictMode")?.value || "overwrite";
+
+            console.log(`Source: ${sourceName}, selected: "${source.selected}", session: ${!!source.sessionId}`);
+            console.log(`Target: ${targetName}, session: ${!!target.sessionId}`);
 
             if (!source.sessionId || !target.sessionId) {
                 showToast("Connect both panes first", true);
