@@ -1919,24 +1919,33 @@
         }
 
         async function loadBookmarks() {
+            console.log("Loading bookmarks...");
             // Get the container for remote bookmarks
             const root = document.getElementById("remoteBookmarks");
-            if (!root) return;
+            if (!root) {
+                console.error("remoteBookmarks element not found!");
+                return;
+            }
             
             root.innerHTML = "<div style='padding: var(--space-md); text-align: center; color: var(--text-muted);'>Loading...</div>";
             
             // Load regular bookmarks
             bookmarks = [];
             try {
+                console.log("Fetching bookmarks from API...");
                 const response = await fetch("/api/bookmarks");
                 bookmarks = await response.json();
+                console.log(`Loaded ${bookmarks.length} bookmarks:`, bookmarks);
             } catch (e) {
-                console.log("Could not load bookmarks:", e);
+                console.error("Could not load bookmarks:", e);
+                root.innerHTML = "<div style='padding:var(--space-lg); text-align:center; color:var(--text-muted);'>Error loading bookmarks</div>";
+                return;
             }
 
             root.innerHTML = "";
             
             if (!bookmarks || !bookmarks.length) {
+                console.log("No bookmarks found");
                 const emptyMsg = document.createElement("div");
                 emptyMsg.style.cssText = "padding:var(--space-lg); text-align:center; color:var(--text-muted); font-size:var(--text-sm);";
                 emptyMsg.innerHTML = "No remote bookmarks yet.<br>Click Connect to add one.";
@@ -1944,7 +1953,10 @@
                 return;
             }
 
+            console.log(`Rendering ${bookmarks.length} bookmarks...`);
             for (const bookmark of bookmarks) {
+                try {
+                    console.log(`Rendering bookmark: ${bookmark.name}`);
                 const row = document.createElement("div");
                 row.className = "bookmark-item";
                 const hostIcon = iconForHost(bookmark.host);
@@ -1979,7 +1991,11 @@
                     showToast("Bookmark deleted");
                 });
                 root.appendChild(row);
+                } catch (err) {
+                    console.error(`Error rendering bookmark ${bookmark.name}:`, err);
+                }
             }
+            console.log("Finished rendering bookmarks");
         }
 
         async function submitBookmark(event) {
@@ -2129,14 +2145,18 @@
                     console.error("Connection failed:", result.error);
                     return;
                 }
-            panes[targetPane].sessionId = result.session_id;
-            panes[targetPane].host = result.host;
-            panes[targetPane].path = result.path || "/";
-            panes[targetPane].selected = "";
-            panes[targetPane].entries = [];
-            activePane = targetPane;
-            await refreshPane(targetPane);
-            showToast(`Connected ${targetPane} pane`);
+                panes[targetPane].sessionId = result.session_id;
+                panes[targetPane].host = result.host;
+                panes[targetPane].path = result.path || "/";
+                panes[targetPane].selected = "";
+                panes[targetPane].entries = [];
+                activePane = targetPane;
+                await refreshPane(targetPane);
+                showToast(`Connected ${targetPane} pane`);
+            } catch (err) {
+                console.error("Connection error:", err);
+                showToast("Connection error: " + err.message, true);
+            }
         }
 
         async function refreshPane(name) {

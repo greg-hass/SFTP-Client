@@ -563,14 +563,22 @@ async def delete_bookmark(bookmark_id: str):
 def connect_with_saved_bookmark(
     bookmark_row: sqlite3.Row, key_data: Optional[str] = None
 ) -> dict:
+    print(f"Decrypting password for {bookmark_row['username']}@{bookmark_row['host']}")
     password = decrypt_password(bookmark_row["password_encrypted"])
     stored_key_data = decrypt_password(bookmark_row["key_data_encrypted"] or "")
     effective_key_data = key_data or stored_key_data
+
+    print(
+        f"Password present: {bool(password)}, Key data present: {bool(effective_key_data)}"
+    )
+
     if bookmark_row["password_encrypted"] and not password and not effective_key_data:
+        print("ERROR: Cannot decrypt password and no key data available")
         raise ValueError(
             "Saved credentials could not be decrypted. Set a stable SFTP_ENCRYPTION_KEY and re-save the bookmark."
         )
 
+    print(f"Creating session to {bookmark_row['host']}:{bookmark_row['port']}")
     session = sessions.create(
         host=bookmark_row["host"],
         port=int(bookmark_row["port"]),
@@ -590,10 +598,13 @@ def connect_with_saved_bookmark(
 
 @app.post("/api/bookmarks/{bookmark_id}/connect")
 async def connect_bookmark(bookmark_id: str, request: Request):
+    print(f"Connecting to bookmark {bookmark_id}")
     body = {}
     try:
         body = await request.json()
-    except Exception:
+        print(f"Request body: {body}")
+    except Exception as e:
+        print(f"No request body or parse error: {e}")
         pass
 
     with get_db() as conn:
@@ -601,10 +612,15 @@ async def connect_bookmark(bookmark_id: str, request: Request):
             "SELECT * FROM bookmarks WHERE id = ?", (bookmark_id,)
         ).fetchone()
     if not row:
+        print(f"Bookmark {bookmark_id} not found")
         return error_response("Bookmark not found", 404)
 
+    print(f"Found bookmark: {row['name']}@{row['host']}")
+
     try:
-        return connect_with_saved_bookmark(row, body.get("key_data"))
+        result = connect_with_saved_bookmark(row, body.get("key_data"))
+        print(f"Connection successful: {result}")
+        return result
     except Exception as exc:
         import traceback
 

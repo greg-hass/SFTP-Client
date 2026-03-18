@@ -10,7 +10,7 @@ services:
       SESSION_TTL_SECONDS: "1800"
       HOST_HOME: "/host"
       # Set a persistent encryption key (generate with: python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
-      # SFTP_ENCRYPTION_KEY: "your-base64-encoded-32-byte-key-here"
+      SFTP_ENCRYPTION_KEY: "KQaZz3XL9u0vdGh71BIw5b1mdGxShUZo_tWWRpn73xg="
     volumes:
       # Persistent storage for bookmarks database and encryption key
       - ./data:/data
