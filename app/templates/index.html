@@ -2615,31 +2615,50 @@
 
         async function openDirectory(name, entryName) {
             const pane = panes[name];
-            const oldPath = pane.path;
-            pane.path = joinPath(pane.path, entryName);
+            const targetPath = joinPath(pane.path, entryName);
             pane.selected = "";
-            const success = await refreshPane(name);
-            if (!success) {
-                // Restore old path if navigation failed
-                pane.path = oldPath;
+            // Try to list the target directory first
+            const testResponse = await fetch("/api/list", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ session_id: pane.sessionId, path: targetPath })
+            });
+            const testResult = await testResponse.json();
+            if (!testResult.success) {
+                showToast(`Cannot access ${entryName}: ${testResult.error || 'Permission denied'}`, true);
                 renderWorkspace();
+                return;
             }
+            // Only update path if directory is accessible
+            pane.path = targetPath;
+            pane.entries = testResult.entries || [];
+            renderWorkspace();
+            await loadStatus();
         }
 
         async function goUpPane(name) {
             const pane = panes[name];
             if (!pane.sessionId || pane.path === "/") return;
-            const oldPath = pane.path;
             const parts = pane.path.split("/").filter(Boolean);
             parts.pop();
-            pane.path = parts.length ? `/${parts.join("/")}` : "/";
+            const targetPath = parts.length ? `/${parts.join("/")}` : "/";
             pane.selected = "";
-            const success = await refreshPane(name);
-            if (!success) {
-                // Restore old path if navigation failed
-                pane.path = oldPath;
+            // Try to list the parent directory first
+            const testResponse = await fetch("/api/list", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ session_id: pane.sessionId, path: targetPath })
+            });
+            const testResult = await testResponse.json();
+            if (!testResult.success) {
+                showToast(`Cannot access parent directory: ${testResult.error || 'Permission denied'}`, true);
                 renderWorkspace();
+                return;
             }
+            // Only update path if directory is accessible
+            pane.path = targetPath;
+            pane.entries = testResult.entries || [];
+            renderWorkspace();
         }
 
         function goUpActive() {
