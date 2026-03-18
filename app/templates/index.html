@@ -2452,12 +2452,10 @@
                     <div class="file-cell-muted hide-mobile">${entry.permissions}</div>
                     <div class="file-actions"></div>
                 `;
-                row.addEventListener("click", () => {
-                    console.log(`Clicked ${entry.name} in ${name} pane`);
+                row.addEventListener("click", async () => {
                     activePane = name;
                     pane.selected = entry.name;
-                    console.log(`Set activePane to ${name}, selected: ${pane.selected}`);
-                    if (entry.is_dir) openDirectory(name, entry.name);
+                    if (entry.is_dir) await openDirectory(name, entry.name);
                     else renderWorkspace();
                 });
                 root.appendChild(row);
@@ -2614,21 +2612,21 @@
             return normalizePath(base === "/" ? `/${name}` : `${base}/${name}`);
         }
 
-        function openDirectory(name, entryName) {
+        async function openDirectory(name, entryName) {
             const pane = panes[name];
             pane.path = joinPath(pane.path, entryName);
             pane.selected = "";
-            refreshPane(name);
+            await refreshPane(name);
         }
 
-        function goUpPane(name) {
+        async function goUpPane(name) {
             const pane = panes[name];
             if (!pane.sessionId || pane.path === "/") return;
             const parts = pane.path.split("/").filter(Boolean);
             parts.pop();
             pane.path = parts.length ? `/${parts.join("/")}` : "/";
             pane.selected = "";
-            refreshPane(name);
+            await refreshPane(name);
         }
 
         function goUpActive() {
