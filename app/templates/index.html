@@ -2243,7 +2243,7 @@
             if (!pane.sessionId) {
                 pane.entries = [];
                 renderWorkspace();
-                return;
+                return true;
             }
             const response = await fetch("/api/list", {
                 method: "POST",
@@ -2261,11 +2261,12 @@
                     pane.selected = "";
                 }
                 renderWorkspace();
-                return;
+                return false;
             }
             pane.entries = result.entries || [];
             renderWorkspace();
             await loadStatus();
+            return true;
         }
 
         async function refreshAll() {
@@ -2614,19 +2615,31 @@
 
         async function openDirectory(name, entryName) {
             const pane = panes[name];
+            const oldPath = pane.path;
             pane.path = joinPath(pane.path, entryName);
             pane.selected = "";
-            await refreshPane(name);
+            const success = await refreshPane(name);
+            if (!success) {
+                // Restore old path if navigation failed
+                pane.path = oldPath;
+                renderWorkspace();
+            }
         }
 
         async function goUpPane(name) {
             const pane = panes[name];
             if (!pane.sessionId || pane.path === "/") return;
+            const oldPath = pane.path;
             const parts = pane.path.split("/").filter(Boolean);
             parts.pop();
             pane.path = parts.length ? `/${parts.join("/")}` : "/";
             pane.selected = "";
-            await refreshPane(name);
+            const success = await refreshPane(name);
+            if (!success) {
+                // Restore old path if navigation failed
+                pane.path = oldPath;
+                renderWorkspace();
+            }
         }
 
         function goUpActive() {
